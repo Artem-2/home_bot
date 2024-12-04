@@ -7,10 +7,11 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.strategy import FSMStrategy
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from assistive.db.DBhelp import BotDB
 
+BotDB.get()
 
-
-from config_read import config
+from assistive.config_read import config
 
 
 from handlers import console_management

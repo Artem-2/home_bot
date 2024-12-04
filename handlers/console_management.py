@@ -5,7 +5,7 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from aiogram import Router, F
 from aiogram.filters import Command
-from states import all
+from assistive.states import all
 import platform
 
 router = Router()

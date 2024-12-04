@@ -2,5 +2,6 @@ config.env
 __pycache__ 
 */__pycache__
 */*/__pycache__
+*/*/DB
 */*/*/__pycache__
 /.vs
