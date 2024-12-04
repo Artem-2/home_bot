@@ -9,6 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from assistive.db.DBhelp import BotDB
 
+#строчка для тестов без нее нет возмождности проверить работу db
 BotDB.get()
 
 from assistive.config_read import config
@@ -37,12 +38,14 @@ async def main():
     #добавление новых router
     dp.include_routers(console_management.router)
     
+    #отправка стартового сообщения администратору
     admins = config["ADMIN"].split(",")
     try:
         for c in admins:
             await bot.send_message(c,'Бот запущен')
     except:
         sys.exit("Неверный id админа \n")
+        
     # Start
     try:
         await bot.delete_webhook(drop_pending_updates=True)

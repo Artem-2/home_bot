@@ -3,7 +3,7 @@ from assistive.db.db_create import db_create
 #доделать создание преподавателя admina
 
 semaphore = 0
-
+#Семафор для защиты базы при большом количестве запросов
 def semaphore_begin():
     global semaphore
     if semaphore == 0:
@@ -34,5 +34,6 @@ class BotDB:
                 flag = 1
         if flag == 1:
             db_create(self)
+    #необходима для тестов потом удалить
     def get(self):
         print("работает")
