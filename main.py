@@ -8,11 +8,11 @@ from aiogram.fsm.strategy import FSMStrategy
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from assistive.db.DBhelp import BotDB
+from assistive.config_read import config
 
 #строчка для тестов без нее нет возмождности проверить работу db
 BotDB.get()
 
-from assistive.config_read import config
 
 
 from handlers import console_management
