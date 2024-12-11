@@ -10,12 +10,14 @@ from aiogram.enums import ParseMode
 from assistive.db.DBhelp import BotDB
 from assistive.config_read import config
 
+
+from handlers import console_management
+from handlers import shopping_cart_manegement
+
 #строчка для тестов без нее нет возмождности проверить работу db
 BotDB.get()
 
 
-
-from handlers import console_management
 
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,7 @@ async def main():
 
     #добавление новых router
     dp.include_routers(console_management.router)
+    dp.include_routers(shopping_cart_manegement.router)
     
     #отправка стартового сообщения администратору
     admins = config["ADMIN"].split(",")
