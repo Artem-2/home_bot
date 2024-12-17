@@ -10,17 +10,13 @@ import uuid
 
 router = Router()
 
-# Состояние для добавления растения
-class AddPlant(all.Plants):
-    plant_name = "plant_name"
-    plant_birthdate = "plant_birthdate"
-    plant_description = "plant_description"
 
 
-@router.message(F.text, Command("shopping"))
+
+@router.message(F.text, Command("plants"))
 async def shopping_cart_manegement_start(message: types.Message, state: FSMContext):
     try:
-        await state.set_state(state=all.plants)
+        await state.set_state(state=all.plants_Q0)
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="Добавить", callback_data="add_plant")],
@@ -34,38 +30,38 @@ async def shopping_cart_manegement_start(message: types.Message, state: FSMConte
         await state.clear()
 
 
-@router.callback_query(F.data == "add_plant")
+@router.callback_query(all.plants_Q0, F.data == "add_plant")
 async def add_plant(callback: types.CallbackQuery, state: FSMContext):
-    await state.set_state(AddPlant.plant_name)
+    await state.set_state(all.plants_Q1)
     await callback.message.answer("Введите название растения:")
 
 
-@router.message(AddPlant.plant_name)
+@router.message(all.plants_Q1)
 async def process_plant_name(message: types.Message, state: FSMContext):
     await state.update_data(plant_name=message.text)
-    await state.set_state(AddPlant.plant_birthdate)
+    await state.set_state(all.plants_Q2)
     await message.answer("Введите дату рождения растения (ГГГГ-ММ-ДД):")
 
 
-@router.message(AddPlant.plant_birthdate)
+@router.message(all.plants_Q2)
 async def process_plant_birthdate(message: types.Message, state: FSMContext):
     try:
         birthdate = datetime.datetime.strptime(message.text, "%Y-%m-%d").date()
         await state.update_data(plant_birthdate=birthdate)
-        await state.set_state(AddPlant.plant_description)
+        await state.set_state(all.plants_Q3)
         await message.answer("Введите описание растения:")
     except ValueError:
         await message.answer("Неверный формат даты. Пожалуйста, используйте формат ГГГГ-ММ-ДД.")
 
 
-@router.message(AddPlant.plant_description)
+@router.message(all.plants_Q3)
 async def process_plant_description(message: types.Message, state: FSMContext):
     await state.update_data(plant_description=message.text)
     await message.answer("Отправьте фото растения:")
-    await state.set_state(AddPlant.next()) # Переход в состояние ожидания фото
+    await state.set_state(all.plants_Q4) # Переход в состояние ожидания фото
 
 
-@router.message(AddPlant.next(), content_types=types.ContentType.PHOTO)
+@router.message(all.plants_Q4, F.photo)
 async def process_plant_photo(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     plant_id = str(uuid.uuid4())
@@ -104,13 +100,13 @@ async def process_edit_plant_id(message: types.Message, state: FSMContext):
     # ... Получение данных о растении по plant_number из БД ...
 
     #Если растение найдено
-    if plant_data: # plant_data - данные растения из БД
-        await state.update_data(plant_number=plant_number, plant_data=plant_data)
-        await message.answer("Введите новое описание:")
-        await state.set_state(all.edit_plant_description)
-    else:
-        await message.answer("Растение не найдено.")
-        await state.clear()
+    #if plant_data: # plant_data - данные растения из БД
+        #await state.update_data(plant_number=plant_number, plant_data=plant_data)
+        #await message.answer("Введите новое описание:")
+        #await state.set_state(all.edit_plant_description)
+    #else:
+        #await message.answer("Растение не найдено.")
+        #await state.clear()
 
 
 @router.message(all.edit_plant_description)
@@ -125,7 +121,7 @@ async def process_edit_plant_description(message: types.Message, state: FSMConte
     await state.set_state(all.edit_plant_photo)
 
 
-@router.message(all.edit_plant_photo, content_types=types.ContentType.PHOTO)
+@router.message(all.edit_plant_photo, F.photo)
 async def process_edit_plant_photos(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     plant_number = user_data['plant_number']
