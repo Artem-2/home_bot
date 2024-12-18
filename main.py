@@ -7,7 +7,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.strategy import FSMStrategy
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from assistive.db.DBhelp import BotDB
 from assistive.config_read import config
 
 
@@ -15,8 +14,6 @@ from handlers import console_management
 from handlers import shopping_cart_manegement
 from handlers import plants_control
 
-#строчка для тестов без нее нет возмождности проверить работу db
-BotDB.get()
 
 
 

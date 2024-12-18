@@ -7,6 +7,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from assistive.states import all
 import datetime
 import uuid
+from assistive.db.DBhelp import BotDB
 
 router = Router()
 
@@ -66,6 +67,8 @@ async def process_plant_photo(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     plant_id = str(uuid.uuid4())
     photo_id = message.photo[-1].file_id #Берем ID последнего фото, если несколько
+
+    BotDB.plant_add()
 
     # Здесь сохранение фото в хранилище (например, облачное хранилище или файловую систему)
     #  используя plant_id и дату как часть имени файла.  Пример:

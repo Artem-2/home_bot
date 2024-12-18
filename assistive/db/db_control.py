@@ -26,7 +26,7 @@ class BotDB:
         self.conn = sqlite3.connect(db_file)
         self.conn.execute("PRAGMA foreign_keys = 1")
         self.cursor = self.conn.cursor()
-        table_array = ["users"]
+        table_array = ["users,plants,planst_history,group,basket"]
         flag = 0
         for t in table_array:
             result = self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='" + t + "';")
@@ -34,6 +34,21 @@ class BotDB:
                 flag = 1
         if flag == 1:
             db_create(self)
-    #необходима для тестов потом удалить
-    def get(self):
-        print("работает")
+    #######################################################################
+    def user_add(self, id_in_telegram, name):
+        semaphore_begin()
+        #добавление нового пользователя
+        self.cursor.execute("INSERT INTO 'users' ('id_in_telegram','name') VALUES (?, ?)",(id_in_telegram,name))
+        self.conn.commit()
+        r = self.cursor.lastrowid
+        semaphore_end()
+        return r
+    #######################################################################
+    def plant_add(self, name, birthdate):
+        semaphore_begin()
+        #добавление нового пользователя
+        self.cursor.execute("INSERT INTO 'plants' ('name','birthdate') VALUES (?, ?)",(name,birthdate))
+        self.conn.commit()
+        r = self.cursor.lastrowid
+        semaphore_end()
+        return r
