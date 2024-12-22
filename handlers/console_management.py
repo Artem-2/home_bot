@@ -27,7 +27,7 @@ class ShellSession:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                bufsize=1,
+                bufsize=-1,
                 universal_newlines=False,  # Чтение в байтах для последующего декодирования
                 shell=True
             )

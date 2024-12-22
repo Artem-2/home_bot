@@ -20,13 +20,12 @@ def semaphore_end():
     semaphore = semaphore - 1
 
 class BotDB:
-
     def __init__(self, db_file):
         #подключение к базе данных
         self.conn = sqlite3.connect(db_file)
         self.conn.execute("PRAGMA foreign_keys = 1")
         self.cursor = self.conn.cursor()
-        table_array = ["users,plants,planst_history,group,basket"]
+        table_array = ["users","plants","plants_history","group","basket"]
         flag = 0
         for t in table_array:
             result = self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='" + t + "';")
@@ -44,10 +43,47 @@ class BotDB:
         semaphore_end()
         return r
     #######################################################################
-    def plant_add(self, name, birthdate):
+    def plant_add(self, name, birthdate, basic_description, user_id):
+        semaphore_begin()
+        #добавление нового растения вызывается в planats_control в process_plant_description
+        self.cursor.execute("""
+        INSERT INTO plants (name, birthdate, basic_description, user_id, individual_id)
+        VALUES (?, ?, ?, (
+            SELECT id 
+            FROM users 
+            WHERE id_in_telegram = ?
+        ), (
+            SELECT COALESCE(
+                (SELECT MIN(individual_id) + 1 
+                FROM plants 
+                WHERE user_id = (
+                    SELECT id 
+                    FROM users 
+                    WHERE id_in_telegram = ?
+                )
+                AND individual_id + 1 NOT IN (
+                    SELECT individual_id 
+                    FROM plants 
+                    WHERE user_id = (
+                        SELECT id 
+                        FROM users 
+                        WHERE id_in_telegram = ?
+                    )
+                )
+                ), 
+                1
+            )
+        ))
+        """, (name, birthdate, basic_description, user_id, user_id, user_id))
+        self.conn.commit()
+        r = self.cursor.lastrowid
+        semaphore_end()
+        return r
+    #######################################################################
+    def plant_history_add(self, plant_id, description, image_id):
         semaphore_begin()
         #добавление нового пользователя
-        self.cursor.execute("INSERT INTO 'plants' ('name','birthdate') VALUES (?, ?)",(name,birthdate))
+        self.cursor.execute("INSERT INTO 'plants_history' ('plant_id', 'description', 'image_id') VALUES (?, ?, ?, ?)",(plant_id, description, image_id))
         self.conn.commit()
         r = self.cursor.lastrowid
         semaphore_end()

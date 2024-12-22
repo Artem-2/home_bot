@@ -41,11 +41,27 @@ async def add_plant(callback: types.CallbackQuery, state: FSMContext):
 async def process_plant_name(message: types.Message, state: FSMContext):
     await state.update_data(plant_name=message.text)
     await state.set_state(all.plants_Q2)
-    await message.answer("Введите дату рождения растения (ГГГГ-ММ-ДД):")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Текущая дата", callback_data="current_date")]
+        ]
+    )
+    await message.answer("Введите дату рождения растения (ГГГГ-ММ-ДД):", reply_markup=keyboard)
+
+@router.callback_query(all.plants_Q2, F.data == "current_date")
+async def process_plant_birthdate(callback: types.CallbackQuery, state: FSMContext):
+    try:
+        birthdate = datetime.date.today()
+        birthdate_str = birthdate.strftime("%Y-%m-%d")
+        await state.update_data(plant_birthdate=birthdate_str)
+        await state.set_state(all.plants_Q3)
+        await callback.message.answer("Введите описание растения:")
+    except ValueError:
+        await callback.message.answer("Неверный формат даты. Пожалуйста, используйте формат ГГГГ-ММ-ДД.")
 
 
 @router.message(all.plants_Q2)
-async def process_plant_birthdate(message: types.Message, state: FSMContext):
+async def process_plant_birthdate2(message: types.Message, state: FSMContext):
     try:
         birthdate = datetime.datetime.strptime(message.text, "%Y-%m-%d").date()
         await state.update_data(plant_birthdate=birthdate)
@@ -57,7 +73,14 @@ async def process_plant_birthdate(message: types.Message, state: FSMContext):
 
 @router.message(all.plants_Q3)
 async def process_plant_description(message: types.Message, state: FSMContext):
-    await state.update_data(plant_description=message.text)
+    user_data = await state.get_data()
+    plant_name = user_data.get("plant_name")
+    plant_birthdate = user_data.get("plant_birthdate")
+    plant_description = message.text
+
+    new_plant_id = BotDB.plant_add(name=plant_name, birthdate=plant_birthdate, basic_description=plant_description, user_id=message.from_user.id)
+    await state.update_data(new_plant_id=new_plant_id)
+
     await message.answer("Отправьте фото растения:")
     await state.set_state(all.plants_Q4) # Переход в состояние ожидания фото
 
@@ -66,16 +89,16 @@ async def process_plant_description(message: types.Message, state: FSMContext):
 async def process_plant_photo(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     plant_id = str(uuid.uuid4())
-    photo_id = message.photo[-1].file_id #Берем ID последнего фото, если несколько
+    photo_id = message.photo[-1].file_id  # Берем ID последнего фото, если несколько
 
-    BotDB.plant_add()
+    # Скачивание фото в папку image
+    file_info = await message.bot.get_file(photo_id)
+    file_path = file_info.file_path
+    await message.bot.download_file(file_path, f"image/{plant_id}_{message.date}.jpg")
 
-    # Здесь сохранение фото в хранилище (например, облачное хранилище или файловую систему)
-    #  используя plant_id и дату как часть имени файла.  Пример:
-    # await bot.download_file(photo_id, f"plants/{plant_id}_{message.date}.jpg")
-    
+    new_plant_id = user_data.get("new_plant_id")
     # Сохранение данных растения в БД
-    # ...  Добавить логику записи в БД используя user_data, plant_id, photo_id ...
+    BotDB.plant_history_add(new_plant_id, ("Стартовое фото"), str(plant_id) + "_" + str(message.date))
 
     await message.answer("Растение добавлено!")
     await state.clear()
