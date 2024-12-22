@@ -8,6 +8,9 @@ from assistive.states import all
 import datetime
 import uuid
 from assistive.db.DBhelp import BotDB
+from aiogram.types import InputFile
+from aiogram.types import FSInputFile
+import os
 
 router = Router()
 
@@ -21,8 +24,9 @@ async def shopping_cart_manegement_start(message: types.Message, state: FSMConte
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="Добавить", callback_data="add_plant")],
-                [InlineKeyboardButton(text="Посмотреть", callback_data="view_plants")],
-                [InlineKeyboardButton(text="Изменить", callback_data="edit_plant")],
+                [InlineKeyboardButton(text="Список растений", callback_data="plants_list")],
+                [InlineKeyboardButton(text="история растения", callback_data="history_plant")],
+                [InlineKeyboardButton(text="Добавить запись", callback_data="edit_plant")],
             ]
         )
         await message.answer("Менеджмент растений:", reply_markup=keyboard)
@@ -94,24 +98,45 @@ async def process_plant_photo(message: types.Message, state: FSMContext):
     # Скачивание фото в папку image
     file_info = await message.bot.get_file(photo_id)
     file_path = file_info.file_path
-    await message.bot.download_file(file_path, f"image/{plant_id}_{message.date}.jpg")
+    file_name = f"{plant_id}_{message.date.strftime('%Y%m%d%H%M%S')}.jpg"
+    file_directory = os.path.join("image", file_name)
+    await message.bot.download_file(file_path, file_directory)
 
     new_plant_id = user_data.get("new_plant_id")
     # Сохранение данных растения в БД
-    BotDB.plant_history_add(new_plant_id, ("Стартовое фото"), str(plant_id) + "_" + str(message.date))
+    BotDB.plant_history_add(new_plant_id, ("Стартовое фото"), str(plant_id) + "_" + str(message.date.strftime('%Y%m%d%H%M%S')) + ".jpg")
 
     await message.answer("Растение добавлено!")
     await state.clear()
 
-
-@router.callback_query(F.data == "view_plants")
+#выводит список расстений
+@router.callback_query(all.plants_Q0, F.data == "plants_list")
 async def view_plants(callback: types.CallbackQuery, state: FSMContext):
-    # Здесь запрос в БД и вывод информации о всех растениях
-    # ...  Получение данных растений из БД ...
-    await callback.message.answer("Информация о растениях:\n"
-                                 # ... Вывод информации из БД ...
-                                  )
+    text = ""
+    plants_list = BotDB.get_plants_list(callback.from_user.id)
+    for plant in plants_list:
+        text += str(plant[0]) + " - " + str(plant[1]) + "\n"
+    await callback.message.answer(text)
+    await state.clear()
 
+#выводит историю конкрентного расстения
+@router.callback_query(all.plants_Q0, F.data == "history_plant")
+async def view_plant_history_start(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer("Введите номер растения для вывода истории:")
+    await state.set_state(all.plant_history_id)
+
+@router.message(all.plant_history_id)
+async def view_plant_history_end(message: types.Message, state: FSMContext):  
+    plant_number = message.text
+    plants_history_list = BotDB.plant_history_get(message.from_user.id, plant_number)
+    if plants_history_list != []:
+        for i in plants_history_list:
+            print(i[2])
+            file_directory = os.path.join("image", i[2])
+            await message.answer_photo(photo=FSInputFile(file_directory), caption=str(i[0])+": " + str(i[1]))
+    else:
+        await message.answer("Такого растения нет")
+        await state.clear()
 
 @router.callback_query(F.data == "edit_plant")
 async def edit_plant(callback: types.CallbackQuery, state: FSMContext):
@@ -122,44 +147,41 @@ async def edit_plant(callback: types.CallbackQuery, state: FSMContext):
 @router.message(all.edit_plant_id)
 async def process_edit_plant_id(message: types.Message, state: FSMContext):
     plant_number = message.text
-    # Здесь запрос в БД по номеру растения
-    # ... Получение данных о растении по plant_number из БД ...
-
-    #Если растение найдено
-    #if plant_data: # plant_data - данные растения из БД
-        #await state.update_data(plant_number=plant_number, plant_data=plant_data)
-        #await message.answer("Введите новое описание:")
-        #await state.set_state(all.edit_plant_description)
-    #else:
-        #await message.answer("Растение не найдено.")
-        #await state.clear()
+    await state.update_data(plant_id=plant_number)
+    plants_history_list = BotDB.plant_history_get(message.from_user.id, plant_number)
+    if plants_history_list != []:
+        await message.answer("Введите описание")
+        await state.set_state(all.edit_plant_description)
+    else:
+        await message.answer("Такого растения нет")
+        await state.clear()
 
 
 @router.message(all.edit_plant_description)
 async def process_edit_plant_description(message: types.Message, state: FSMContext):
-    user_data = await state.get_data()
-    new_description = message.text
+    await state.update_data(description=message.text)
 
-    # Здесь обновление данных растения в БД
-    # ... Обновление поля описания в БД ...
-
-    await message.answer("Описание обновлено. Отправьте новые фото (можно ничего не отправлять):")
+    await message.answer("Отправьте новое фото:")
     await state.set_state(all.edit_plant_photo)
 
 
 @router.message(all.edit_plant_photo, F.photo)
 async def process_edit_plant_photos(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    plant_number = user_data['plant_number']
+    plant_id = user_data.get("plant_id")
+    description = user_data.get("description")
+    user_data = await state.get_data()
     photo_id = message.photo[-1].file_id
 
-    # Здесь сохранение новых фото в хранилище и обновление в БД
-    # ... Добавить логику сохранения фото и обновления БД ...
+    file_info = await message.bot.get_file(photo_id)
+    file_path = file_info.file_path
+    file_name = f"{plant_id}_{message.date.strftime('%Y%m%d%H%M%S')}.jpg"
+    file_directory = os.path.join("image", file_name)
+    await message.bot.download_file(file_path, file_directory)
 
-    await message.answer("Фотографии обновлены!")
-    await state.clear()
+    new_plant_id = user_data.get("new_plant_id")
+    # Сохранение данных растения в БД
+    BotDB.plant_history_add(plant_id, description, str(plant_id) + "_" + str(message.date.strftime('%Y%m%d%H%M%S')) + ".jpg")
 
-@router.message(all.edit_plant_photo) #обработка отсутствия фото
-async def process_edit_plant_photo_skip(message: types.Message, state: FSMContext):
-    await message.answer("Фотографии не обновлены!")
+    await message.answer("Запись добавлена")
     await state.clear()

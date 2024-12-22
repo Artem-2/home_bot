@@ -22,7 +22,7 @@ def db_create(conn):
         CREATE TABLE plants (
         id                INTEGER PRIMARY KEY AUTOINCREMENT
                                 NOT NULL,
-        name                      NOT NULL,
+        name              TEXT    NOT NULL,
         birthdate         TEXT    NOT NULL,
         user_id           INTEGER NOT NULL
                                 REFERENCES users (id) ON DELETE CASCADE

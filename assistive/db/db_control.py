@@ -34,18 +34,18 @@ class BotDB:
         if flag == 1:
             db_create(self)
     #######################################################################
+    #добавление нового пользователя
     def user_add(self, id_in_telegram, name):
         semaphore_begin()
-        #добавление нового пользователя
         self.cursor.execute("INSERT INTO 'users' ('id_in_telegram','name') VALUES (?, ?)",(id_in_telegram,name))
         self.conn.commit()
         r = self.cursor.lastrowid
         semaphore_end()
         return r
     #######################################################################
+    #добавление нового растения вызывается в planats_control в process_plant_description
     def plant_add(self, name, birthdate, basic_description, user_id):
         semaphore_begin()
-        #добавление нового растения вызывается в planats_control в process_plant_description
         self.cursor.execute("""
         INSERT INTO plants (name, birthdate, basic_description, user_id, individual_id)
         VALUES (?, ?, ?, (
@@ -80,11 +80,30 @@ class BotDB:
         semaphore_end()
         return r
     #######################################################################
+    #добавляет новую запись в историю расстений 
     def plant_history_add(self, plant_id, description, image_id):
         semaphore_begin()
         #добавление нового пользователя
-        self.cursor.execute("INSERT INTO 'plants_history' ('plant_id', 'description', 'image_id') VALUES (?, ?, ?, ?)",(plant_id, description, image_id))
+        self.cursor.execute("INSERT INTO 'plants_history' ('plant_id', 'description', 'image_id') VALUES (?, ?, ?)",(plant_id, description, image_id))
         self.conn.commit()
         r = self.cursor.lastrowid
+        semaphore_end()
+        return r
+    #######################################################################
+    #получить список добавленыйх расстений
+    def get_plants_list(self, user_id):
+        semaphore_begin()
+        #добавление нового пользователя
+        result = self.cursor.execute("SELECT individual_id, name  FROM plants WHERE user_id = (SELECT id FROM users WHERE id_in_telegram = ?)",(user_id,))
+        r = result.fetchall()
+        semaphore_end()
+        return r
+    #######################################################################
+    #получить историю расстений
+    def plant_history_get(self, user_id, plant_id):
+        semaphore_begin()
+        #добавление нового пользователя
+        result = self.cursor.execute("SELECT date, description, image_id  FROM plants_history WHERE plant_id = (SELECT id  FROM plants WHERE user_id = (SELECT id FROM users WHERE id_in_telegram = ?) and individual_id = ?)",(user_id, plant_id))
+        r = result.fetchall()
         semaphore_end()
         return r

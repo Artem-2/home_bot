@@ -10,6 +10,7 @@ class all(StatesGroup):
     plants_Q2 = State()
     plants_Q3 = State()
     plants_Q4 = State()
+    plant_history_id = State()
     edit_plant_id = State()
     edit_plant_description = State()
     edit_plant_photo = State()
