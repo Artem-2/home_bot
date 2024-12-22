@@ -85,6 +85,7 @@ async def process_plant_description(message: types.Message, state: FSMContext):
     new_plant_id = BotDB.plant_add(name=plant_name, birthdate=plant_birthdate, basic_description=plant_description, user_id=message.from_user.id)
     await state.update_data(new_plant_id=new_plant_id)
 
+    await message.answer("Растение добавлено с номером: "+str(new_plant_id))
     await message.answer("Отправьте фото растения:")
     await state.set_state(all.plants_Q4) # Переход в состояние ожидания фото
 
