@@ -14,4 +14,5 @@ class all(StatesGroup):
     edit_plant_id = State()
     edit_plant_description = State()
     edit_plant_photo = State()
+    end_plant = State()
     

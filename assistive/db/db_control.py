@@ -44,41 +44,35 @@ class BotDB:
         return r
     #######################################################################
     #добавление нового растения вызывается в planats_control в process_plant_description
-    def plant_add(self, name, birthdate, basic_description, user_id):
+    def plant_add(self, name, birthdate, basic_description, id_in_telegram):
         semaphore_begin()
+        result = self.cursor.execute("""SELECT individual_id FROM plants  WHERE user_id = (SELECT id FROM users WHERE id_in_telegram = ?);""", (id_in_telegram,))
+        r = result.fetchall()
+        i = 0
+        flag = 0
+        arr = []
+        for a in r:
+            arr.append(a[0])
+        while flag == 0:
+            i+=1
+            if str(i) in arr:
+                flag = 0
+            else:
+                print(str(i) + " = " + str(arr))
+                flag = 1
+
         self.cursor.execute("""
         INSERT INTO plants (name, birthdate, basic_description, user_id, individual_id)
         VALUES (?, ?, ?, (
             SELECT id 
             FROM users 
             WHERE id_in_telegram = ?
-        ), (
-            SELECT COALESCE(
-                (SELECT MIN(individual_id) + 1 
-                FROM plants 
-                WHERE user_id = (
-                    SELECT id 
-                    FROM users 
-                    WHERE id_in_telegram = ?
-                )
-                AND individual_id + 1 NOT IN (
-                    SELECT individual_id 
-                    FROM plants 
-                    WHERE user_id = (
-                        SELECT id 
-                        FROM users 
-                        WHERE id_in_telegram = ?
-                    )
-                )
-                ), 
-                1
-            )
-        ))
-        """, (name, birthdate, basic_description, user_id, user_id, user_id))
+        ),?)
+        """, (name, birthdate, basic_description, id_in_telegram, str(i)))
         self.conn.commit()
         r = self.cursor.lastrowid
         semaphore_end()
-        return r
+        return str(i)
     #######################################################################
     #добавляет новую запись в историю расстений 
     def plant_history_add(self, plant_id, description, image_id):
@@ -94,7 +88,7 @@ class BotDB:
     def get_plants_list(self, user_id):
         semaphore_begin()
         #добавление нового пользователя
-        result = self.cursor.execute("SELECT individual_id, name  FROM plants WHERE user_id = (SELECT id FROM users WHERE id_in_telegram = ?)",(user_id,))
+        result = self.cursor.execute("SELECT individual_id, name FROM plants WHERE user_id = (SELECT id FROM users WHERE id_in_telegram = ?) AND individual_id NOT LIKE '%-ARCHIVED'", (user_id,))
         r = result.fetchall()
         semaphore_end()
         return r
@@ -107,3 +101,15 @@ class BotDB:
         r = result.fetchall()
         semaphore_end()
         return r
+    #######################################################################
+    #перевод расстения в статус ARCHIVED
+    def plant_ARCHIVED(self, user_id, plant_id):
+        semaphore_begin()
+        self.cursor.execute("""
+        UPDATE plants
+        SET individual_id = individual_id || '-ARCHIVED'
+        WHERE user_id = (SELECT id FROM users WHERE id_in_telegram = ?) 
+        AND individual_id = ?
+        """, (user_id, plant_id))
+        self.conn.commit()
+        semaphore_end()

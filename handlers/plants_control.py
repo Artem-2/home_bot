@@ -82,7 +82,7 @@ async def process_plant_description(message: types.Message, state: FSMContext):
     plant_birthdate = user_data.get("plant_birthdate")
     plant_description = message.text
 
-    new_plant_id = BotDB.plant_add(name=plant_name, birthdate=plant_birthdate, basic_description=plant_description, user_id=message.from_user.id)
+    new_plant_id = BotDB.plant_add(name=plant_name, birthdate=plant_birthdate, basic_description=plant_description, id_in_telegram=message.from_user.id)
     await state.update_data(new_plant_id=new_plant_id)
 
     await message.answer("Растение добавлено с номером: "+str(new_plant_id))
@@ -188,4 +188,27 @@ async def process_edit_plant_photos(message: types.Message, state: FSMContext):
     BotDB.plant_history_add(plant_id, description, str(plant_id) + "_" + str(message.date.strftime('%Y%m%d%H%M%S')) + ".jpg")
 
     await message.answer("Запись добавлена")
+    await state.clear()
+
+
+
+@router.callback_query(F.data == "end_plant")
+async def end_plant_list(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer("Выберите номер умершего расстения:")
+    plants_list = BotDB.get_plants_list(callback.from_user.id)
+    button = []
+    for plant in plants_list:
+        button.append([InlineKeyboardButton(text=str(plant[0]) + " - " + str(plant[1]), callback_data=str(plant[0]))])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard = button
+    )
+    await callback.message.answer("Список расстений:", reply_markup=keyboard)
+    await state.set_state(all.end_plant)
+
+
+@router.callback_query(all.end_plant)
+async def end_plant(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(plant_id=callback.data)
+    BotDB.plant_ARCHIVED(callback.from_user.id, callback.data)
+    await callback.message.answer("Растние переведено в статус ARCHIVED")
     await state.clear()
