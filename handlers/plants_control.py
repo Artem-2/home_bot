@@ -25,8 +25,8 @@ async def shopping_cart_manegement_start(message: types.Message, state: FSMConte
             inline_keyboard=[
                 [InlineKeyboardButton(text="Добавить", callback_data="add_plant")],
                 [InlineKeyboardButton(text="Список растений", callback_data="plants_list")],
-                [InlineKeyboardButton(text="история растения", callback_data="history_plant")],
                 [InlineKeyboardButton(text="Добавить запись", callback_data="edit_plant")],
+                [InlineKeyboardButton(text="Смерть", callback_data="end_plant")],
             ]
         )
         await message.answer("Менеджмент растений:", reply_markup=keyboard)
@@ -113,48 +113,51 @@ async def process_plant_photo(message: types.Message, state: FSMContext):
 #выводит список расстений
 @router.callback_query(all.plants_Q0, F.data == "plants_list")
 async def view_plants(callback: types.CallbackQuery, state: FSMContext):
-    text = ""
     plants_list = BotDB.get_plants_list(callback.from_user.id)
+    button = []
     for plant in plants_list:
-        text += str(plant[0]) + " - " + str(plant[1]) + "\n"
-    await callback.message.answer(text)
-    await state.clear()
-
-#выводит историю конкрентного расстения
-@router.callback_query(all.plants_Q0, F.data == "history_plant")
-async def view_plant_history_start(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("Введите номер растения для вывода истории:")
+        button.append([InlineKeyboardButton(text=str(plant[0]) + " - " + str(plant[1]), callback_data=str(plant[0]))])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard = button
+    )
+    await callback.message.answer("Список расстений:", reply_markup=keyboard)
     await state.set_state(all.plant_history_id)
 
-@router.message(all.plant_history_id)
-async def view_plant_history_end(message: types.Message, state: FSMContext):  
-    plant_number = message.text
-    plants_history_list = BotDB.plant_history_get(message.from_user.id, plant_number)
+
+@router.callback_query(all.plant_history_id)
+async def view_plant_history_end(callback: types.CallbackQuery, state: FSMContext):  
+    plants_history_list = BotDB.plant_history_get(callback.from_user.id, callback.data)
     if plants_history_list != []:
         for i in plants_history_list:
-            print(i[2])
             file_directory = os.path.join("image", i[2])
-            await message.answer_photo(photo=FSInputFile(file_directory), caption=str(i[0])+": " + str(i[1]))
+            await callback.message.answer_photo(photo=FSInputFile(file_directory), caption=str(i[0])+": " + str(i[1]))
     else:
-        await message.answer("Такого растения нет")
+        await callback.message.answer("Такого растения нет")
         await state.clear()
 
 @router.callback_query(F.data == "edit_plant")
 async def edit_plant(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Введите номер растения для редактирования:")
+    plants_list = BotDB.get_plants_list(callback.from_user.id)
+    button = []
+    for plant in plants_list:
+        button.append([InlineKeyboardButton(text=str(plant[0]) + " - " + str(plant[1]), callback_data=str(plant[0]))])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard = button
+    )
+    await callback.message.answer("Список расстений:", reply_markup=keyboard)
     await state.set_state(all.edit_plant_id)
 
 
-@router.message(all.edit_plant_id)
-async def process_edit_plant_id(message: types.Message, state: FSMContext):
-    plant_number = message.text
-    await state.update_data(plant_id=plant_number)
-    plants_history_list = BotDB.plant_history_get(message.from_user.id, plant_number)
+@router.callback_query(all.edit_plant_id)
+async def process_edit_plant_id(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(plant_id=callback.data)
+    plants_history_list = BotDB.plant_history_get(callback.from_user.id, callback.data)
     if plants_history_list != []:
-        await message.answer("Введите описание")
+        await callback.message.answer("Введите описание")
         await state.set_state(all.edit_plant_description)
     else:
-        await message.answer("Такого растения нет")
+        await callback.message.answer("Такого растения нет")
         await state.clear()
 
 
